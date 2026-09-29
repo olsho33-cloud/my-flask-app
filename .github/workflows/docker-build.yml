@@ -56,3 +56,28 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      - name: Deploy to ECS Fargate
+        run: |
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=is-default,Values=true" \
+            --query "Vpcs[0].VpcId" \
+            --output text)
+
+          SUBNET_ID=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query "Subnets[0].SubnetId" \
+            --output text)
+
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters \
+              "Name=vpc-id,Values=$VPC_ID" \
+              "Name=group-name,Values=my-flask-fargate-sg" \
+            --query "SecurityGroups[0].GroupId" \
+            --output text)
+
+          aws ecs run-task \
+            --cluster my-flask-cluster \
+            --launch-type FARGATE \
+            --task-definition my-flask-task \
+            --count 1 \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}"
