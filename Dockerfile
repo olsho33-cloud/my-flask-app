@@ -1,4 +1,4 @@
-FROM python:this-image-does-not-exist
+FROM python:3.11-slim
 
 WORKDIR /app
 
